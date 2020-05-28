@@ -1,0 +1,34 @@
+definitions:
+  buildApp: &buildApp
+    name: "Build app"
+    image: node:12.16-alpine3.11
+    caches:
+      - node
+    script:
+      - npm install --quiet -g node-gyp gatsby-cli
+      - npm ci --unsafe-perm
+      - gatsby build
+    artifacts:
+      - public/**
+  deployToStaging: &deployToStaging
+    name: "Deploy to staging"
+    image: atlassian/default-image:2
+    deployment: Staging
+    script:
+      - pipe: atlassian/scp-deploy:0.3.11
+        variables:
+          USER: $SSH_USER
+          SERVER: $HOST
+          REMOTE_PATH: $HOST_PATH
+          LOCAL_PATH: "public"
+
+pipelines:
+  branches:
+    develop:
+      - step: *buildApp
+    staging:
+      - step: *buildApp
+      - step: *deployToStaging
+  pull-requests:
+    '**':
+      - step: *buildApp
